@@ -134,7 +134,7 @@ import mlflow.sklearn
 mlflow.set_tracking_uri("http://127.0.0.1:5000")
 
 @st.cache_resource
-def load_analysis_engines():
+def load_models():
     """Fetches the latest registered models from MLflow."""
     clf = mlflow.sklearn.load_model("models:/EMI_Loan_RandomForest_Model/latest")
     reg = mlflow.sklearn.load_model("models:/EMI_Max_Amount_Regressor/latest")
@@ -155,93 +155,80 @@ st.title("🧬 EMI Eligibility")
 st.markdown("This engine calculates your **Eligibility Status** and **Affordability Limit** based on your unique features.")
 
 with st.form("feature_intelligence_form"):
-    c1, c2 = st.columns(2)
-    
-    with c1:
-        st.subheader("👤 Profile & Income")
-        u_salary = st.number_input("Monthly Net Income (₹)", value=85000)
-        u_age = st.number_input("Current Age", 18, 70, 30)
-        u_credit = st.slider("Credit Score", 300, 850, 720)
-        u_years = st.number_input("Employment Years", value=5.0)
-
-    with c2:
-        st.subheader("💳 Obligations & Assets")
-        u_rent = st.number_input("Monthly Rent/Home Exp (₹)", value=15000)
-        u_cur_emi = st.number_input("Existing Monthly EMIs (₹)", value=5000)
-        u_bank = st.number_input("Liquid Bank Balance (₹)", value=250000)
-        u_dependents = st.number_input("Number of Dependents", 0, 10, 2)
-
-    st.divider()
-    st.subheader("🎯 Test Scenario")
-    sc1, sc2 = st.columns(2)
-    u_req_amt = sc1.number_input("Loan Amount to Test (₹)", value=500000)
-    u_tenure = sc2.number_input("Desired Tenure (Months)", value=36)
-    
-    run_analysis = st.form_submit_button("🚀 CALCULATE ELIGIBILITY")
-
-# --- 3. THE ANALYTICAL CORE ---
-if run_analysis:
-    try:
-        clf, reg = load_analysis_engines()
-
-        # Feature Engineering: Generating the inputs the models crave
-        total_exp = u_rent + u_cur_emi + 20000 # 20k baseline for living costs
-        disp_income = u_salary - total_exp
-        test_emi = u_req_amt / u_tenure
+        c1, c2 = st.columns(2)
         
-        feature_data = {
-            "age": u_age,
-            "monthly_salary": u_salary,
-            "years_of_employment": u_years,
-            "current_emi_amount": u_cur_emi,
-            "credit_score": u_credit,
-            "bank_balance": u_bank,
-            "total_monthly_expenditure": total_exp,
-            "disposable_income": disp_income,
-            "requested_emi": test_emi,
-            "dti_ratio": u_cur_emi / (u_salary + 1),
-            "potential_dti": (u_cur_emi + test_emi) / (u_salary + 1)
-        }
+        with c1:
+            st.subheader("👤 Profile & Income")
+            u_salary = st.number_input("Monthly Net Income (₹)", value=85000)
+            u_age = st.number_input("Current Age", 18, 70, 30)
+            u_credit = st.slider("Credit Score", 300, 850, 720)
+            u_years = st.number_input("Employment Years", value=5.0)
 
-        # --- DATA VARIABLE: emi2026 ---
-        emi2026 = pd.DataFrame([feature_data])
+        with c2:
+            st.subheader("💳 Obligations & Assets")
+            u_rent = st.number_input("Monthly Rent/Home Exp (₹)", value=15000)
+            u_cur_emi = st.number_input("Existing Monthly EMIs (₹)", value=5000)
+            u_bank = st.number_input("Liquid Bank Balance (₹)", value=250000)
+            u_dependents = st.number_input("Number of Dependents", 0, 10, 2)
 
-        # --- 4. PREDICTIONS ---
-        # Eligibility Check (Classification)
-        emi2026_clf = auto_align(clf, emi2026.copy())
-        elig_pred = clf.predict(emi2026_clf)[0]
+        # Removed the "Test Scenario" (u_req_amt and u_tenure) inputs
         
-        # Max Capacity Check (Regression)
-        emi2026_reg = auto_align(reg, emi2026.copy())
-        max_capacity = reg.predict(emi2026_reg)[0]
+        run_analysis = st.form_submit_button("🚀 CALCULATE ELIGIBILITY")
 
-        # --- 5. RESULTS DISPLAY ---
-        st.divider()
-        res1, res2 = st.columns(2)
+    # --- THE ANALYTICAL CORE ---
+        if run_analysis:
+            try:
+                clf, reg = load_models()
 
-        with res1:
-            status_map = {0: "❌ Denied", 1: "⚠️ High Risk", 2: "✅ Eligible"}
-            result_label = status_map.get(elig_pred, "Unknown")
-            st.metric("Eligibility Status", result_label)
-            
-            if elig_pred == 2:
-                st.success("Your profile features suggest a strong likelihood of approval.")
-            elif elig_pred == 1:
-                st.warning("You are on the edge. High DTI or Credit Score may be a factor.")
-            else:
-                st.error("Financial features do not meet current approval thresholds.")
+                # Updated Feature Engineering (Removed test_emi dependencies)
+                total_exp = u_rent + u_cur_emi + 20000 
+                disp_income = u_salary - total_exp
+                
+                feature_data = {
+                    "age": u_age,
+                    "monthly_salary": u_salary,
+                    "years_of_employment": u_years,
+                    "current_emi_amount": u_cur_emi,
+                    "credit_score": u_credit,
+                    "bank_balance": u_bank,
+                    "total_monthly_expenditure": total_exp,
+                    "disposable_income": disp_income,
+                    "requested_emi": 0, # Defaulted to 0 as requested_emi is no longer a user input
+                    "dti_ratio": u_cur_emi / (u_salary + 1),
+                    "potential_dti": u_cur_emi / (u_salary + 1)
+                }
 
-        with res2:
-            st.metric("Max EMI Capacity", f"₹{max_capacity:,.2f}")
-            
-            # Affordability Comparison
-            capacity_usage = (test_emi / max_capacity) * 100
-            if test_emi > max_capacity:
-                st.error(f"Test EMI (₹{test_emi:,.0f}) exceeds your predicted limit!")
-            else:
-                progress_val = float(min(capacity_usage / 100, 1.0))
-                st.progress(progress_val)
-                st.info(f"You are using {capacity_usage:.1f}% of your AI-predicted EMI capacity.")
+                # --- DATA VARIABLE: emi2026 ---
+                emi2026 = pd.DataFrame([feature_data])
 
-    except Exception as e:
-        st.error(f"System Error: {e}")
+                # --- PREDICTIONS ---
+                # Eligibility Check (Classification)
+                emi2026_clf = auto_align(clf, emi2026.copy())
+                elig_pred = clf.predict(emi2026_clf)[0]
+                
+                # Max Capacity Check (Regression)
+                emi2026_reg = auto_align(reg, emi2026.copy())
+                max_capacity = reg.predict(emi2026_reg)[0]
+
+                # --- RESULTS DISPLAY ---
+                st.divider()
+                res1, res2 = st.columns(2)
+
+                with res1:
+                    status_map = {0: "❌ Denied", 1: "⚠️ High Risk", 2: "✅ Eligible"}
+                    result_label = status_map.get(elig_pred, "Unknown")
+                    st.metric("Eligibility Status", result_label)
+                    
+                    if elig_pred == 2:
+                        st.success("Your profile features suggest a strong likelihood of approval.")
+                    elif elig_pred == 1:
+                        st.warning("You are on the edge. High DTI or Credit Score may be a factor.")
+                    else:
+                        st.error("Financial features do not meet current approval thresholds.")
+
+                with res2:
+                    st.metric("Max EMI Capacity", f"₹{max_capacity:,.2f}")
+                    st.info("This is the maximum monthly EMI our AI predicts you can comfortably afford based on your profile.")
+
+            except Exception as e:
+                st.error(f"System Error: {e}")

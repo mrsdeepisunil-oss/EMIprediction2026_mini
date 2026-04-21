@@ -121,7 +121,7 @@ elif page == "Predictions":
             # Feature Engineering: Generating the inputs the models crave
             total_exp = u_rent + u_cur_emi + 20000 # 20k baseline for living costs
             disp_income = u_salary - total_exp
-            test_emi = u_req_amt / u_tenure
+            # test_emi = u_req_amt / u_tenure
             
             feature_data = {
                 "age": u_age,
@@ -132,9 +132,9 @@ elif page == "Predictions":
                 "bank_balance": u_bank,
                 "total_monthly_expenditure": total_exp,
                 "disposable_income": disp_income,
-                "requested_emi": test_emi,
+                "requested_emi": 0,
                 "dti_ratio": u_cur_emi / (u_salary + 1),
-                "potential_dti": (u_cur_emi + test_emi) / (u_salary + 1)
+                "potential_dti": u_cur_emi / (u_salary + 1)
             }
 
             # --- DATA VARIABLE: emi2026 ---
@@ -167,15 +167,17 @@ elif page == "Predictions":
 
             with res2:
                 st.metric("Max EMI Capacity", f"₹{max_capacity:,.2f}")
+                st.info("This is the maximum monthly EMI our AI predicts you can comfortably afford based on your profile.")
+
                 
-                # Affordability Comparison
-                capacity_usage = (test_emi / max_capacity) * 100
-                if test_emi > max_capacity:
-                    st.error(f"Test EMI (₹{test_emi:,.0f}) exceeds your predicted limit!")
-                else:
-                    progress_val = float(min(capacity_usage / 100, 1.0))
-                    st.progress(progress_val)
-                    st.info(f"You are using {capacity_usage:.1f}% of your AI-predicted EMI capacity.")
+                # # Affordability Comparison
+                # capacity_usage = (test_emi / max_capacity) * 100
+                # if test_emi > max_capacity:
+                #     st.error(f"Test EMI (₹{test_emi:,.0f}) exceeds your predicted limit!")
+                # else:
+                #     progress_val = float(min(capacity_usage / 100, 1.0))
+                #     st.progress(progress_val)
+                #     st.info(f"You are using {capacity_usage:.1f}% of your AI-predicted EMI capacity.")
 
         except Exception as e:
             st.error(f"System Error: {e}")
