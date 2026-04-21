@@ -106,10 +106,10 @@ elif page == "Predictions":
             u_dependents = st.number_input("Number of Dependents", 0, 10, 2)
 
         st.divider()
-        st.subheader("🎯 Test Scenario")
-        sc1, sc2 = st.columns(2)
-        u_req_amt = sc1.number_input("Loan Amount to Test (₹)", value=500000)
-        u_tenure = sc2.number_input("Desired Tenure (Months)", value=36)
+        # st.subheader("🎯 Test Scenario")
+        # sc1, sc2 = st.columns(2)
+        # u_req_amt = sc1.number_input("Loan Amount to Test (₹)", value=500000)
+        # u_tenure = sc2.number_input("Desired Tenure (Months)", value=36)
         
         run_analysis = st.form_submit_button("🚀 CALCULATE ELIGIBILITY")
 
