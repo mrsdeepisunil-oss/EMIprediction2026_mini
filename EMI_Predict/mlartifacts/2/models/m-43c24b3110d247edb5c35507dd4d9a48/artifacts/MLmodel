@@ -1,4 +1,4 @@
-artifact_path: mlflow-artifacts:/2/models/m-43c24b3110d247edb5c35507dd4d9a48/artifacts
+artifact_path: artifacts
 flavors:
   python_function:
     env:
