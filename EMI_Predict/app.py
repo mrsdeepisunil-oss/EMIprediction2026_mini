@@ -22,22 +22,29 @@ def show_data_insights():
     st.markdown("Explore the trends and underlying data used for our eligibility predictions.")
     
     try:
-        # Load the dataset
-        df = pd.read_csv("emi_prediction_dataset.csv")
+        # 1. THE CORRECT RAW URL
+        csv_url = "https://raw.githubusercontent.com/mrsdeepisunil-oss/EMIprediction2026_mini/main/EMI_Predict/emi_prediction_dataset.csv"
         
-        # Defining the two tabs: One for visual charts, one for the data table
+        # 2. LOAD DATA ONCE (using q2024 as requested)
+        q2024 = pd.read_csv(csv_url, on_bad_lines='skip')
+        df = q2024 
+        
         tab1, tab2 = st.tabs(["📈 Business Analytics", "📋 Dataset Overview"])
 
         with tab1:
             st.subheader("Financial Distributions")
             
-            # Key Metrics row
             m1, m2, m3 = st.columns(3)
             m1.metric("Total Records", len(df))
-            m2.metric("Avg Credit Score", int(df['credit_score'].mean()))
-            m3.metric("Eligible Rate", f"{(df['emi_eligibility'] == 2).mean():.1%}")
+
+            # 3. FIXED: parentheses after .mean()
+            avg_score = int(df['credit_score'].mean()) 
+            m2.metric("Avg Credit Score", avg_score)
+
+            # 4. FIXED: parentheses after .mean()
+            eligible_rate = (df['emi_eligibility'] == 2).mean()
+            m3.metric("Eligible Rate", f"{eligible_rate:.1%}")
             
-            # Visual Charts
             col_left, col_right = st.columns(2)
             with col_left:
                 st.write("**Credit Score Impact**")
@@ -57,11 +64,8 @@ def show_data_insights():
 
         with tab2:
             st.subheader("Raw Data Preview")
-            st.write("This table shows the feature sets used to train and validate the EMI models.")
-            # Displaying the first 50 rows of the dataframe
             st.dataframe(df, use_container_width=True)
             
-            # Download button for the data
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Download Dataset as CSV",
