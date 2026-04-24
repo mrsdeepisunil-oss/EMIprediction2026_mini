@@ -210,6 +210,62 @@ def get_mock_prediction(data):
     max_emi = (data['monthly_salary'] - data['current_emi_amount'] - data['rent']) * 0.4
     return eligibility, max_emi
 
+def show_data_insights():
+    st.title("📊 Data Insights")
+    st.markdown("Explore the trends and underlying data used for our eligibility predictions.")
+    
+    try:
+        # Load the dataset
+        df = pd.read_csv("emi_prediction_dataset.csv")
+        
+        # Defining the two tabs: One for visual charts, one for the data table
+        tab1, tab2 = st.tabs(["📈 Business Analytics", "📋 Dataset Overview"])
+
+        with tab1:
+            st.subheader("Financial Distributions")
+            
+            # Key Metrics row
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Total Records", len(df))
+            m2.metric("Avg Credit Score", int(df['credit_score'].mean()))
+            m3.metric("Eligible Rate", f"{(df['emi_eligibility'] == 2).mean():.1%}")
+            
+            # Visual Charts
+            col_left, col_right = st.columns(2)
+            with col_left:
+                st.write("**Credit Score Impact**")
+                fig = px.histogram(
+                    df, x="credit_score", color="emi_eligibility", 
+                    barmode="overlay", color_discrete_sequence=px.colors.qualitative.Set1
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+            with col_right:
+                st.write("**Income vs. Predicted Capacity**")
+                fig2 = px.scatter(
+                    df, x="monthly_salary", y="max_monthly_emi", 
+                    color="emi_eligibility", opacity=0.5
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+
+        with tab2:
+            st.subheader("Raw Data Preview")
+            st.write("This table shows the feature sets used to train and validate the EMI models.")
+            # Displaying the first 50 rows of the dataframe
+            st.dataframe(df, use_container_width=True)
+            
+            # Download button for the data
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download Dataset as CSV",
+                data=csv,
+                file_name='emi_data_export.csv',
+                mime='text/csv',
+            )
+
+    except Exception as e:
+        st.error(f"Error loading insights: {e}")
+
 # --- 3. SIDEBAR NAVIGATION ---
 st.sidebar.title("🚀 EMIPredict AI")
 st.sidebar.info("Model Registry: Connected")
@@ -275,10 +331,7 @@ elif page == "Predictions":
 
 # --- PAGE 3: DATA INSIGHTS ---
 elif page == "Data Insights":
-    st.title("📊 Data Insights & Model Governance")
-    st.info("Visualizing trends from the emi_prediction_dataset.")
-    # Placeholder chart
-    st.bar_chart(np.random.randn(10, 2))
+    show_data_insights()
 
 # --- PAGE 4: ADMIN ---
 elif page == "Admin Dashboard":
