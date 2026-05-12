@@ -7,15 +7,35 @@ import plotly.express as px
 st.set_page_config(page_title="EMIPredict AI", layout="wide")
 
 # --- 2. MOCK PREDICTION LOGIC ---
-def get_mock_prediction(data):
-    score = 0
-    if data['credit_score'] > 700: score += 1
-    if data['monthly_salary'] > 50000: score += 1
+def get_realtime_analytics(data):
+    # Calculate Disposable Income and Debt-to-Income (DTI)
+    disposable_income = data['salary'] - data['emi'] - data['rent']
+    total_obligations = data['emi'] + data['rent']
+    dti_ratio = total_obligations / data['salary'] if data['salary'] > 0 else 1
     
-    eligibility = 2 if score == 2 else 1 if score == 1 else 0
-    # Logic: Capacity is 40% of Disposable Income
-    max_emi = (data['monthly_salary'] - data['current_emi_amount'] - data['rent']) * 0.4
-    return eligibility, max_emi
+    # --- A. CLASSIFICATION LOGIC (Decision Tree) ---
+    score = 0
+    # Condition 1: Creditworthiness
+    if data['credit'] > 700: score += 1
+    # Condition 2: Disposable Income & DTI Safety
+    if disposable_income > 25000 and dti_ratio < 0.45: score += 1
+    # Condition 3: Age & Liquidity Penalty (Reduces risk for age 50+ with low bank balance)
+    if data['age'] > 45 and data['bank'] < 100000: score -= 1
+
+    # Map score to result
+    if score >= 2: result = 2   # Eligible
+    elif score == 1: result = 1 # High Risk
+    else: result = 0            # Denied
+
+    # --- B. REGRESSION LOGIC (Weighted Formula) ---
+    # Capacity reduces as you approach retirement (age 60)
+    age_tenure_factor = max(0.1, (60 - data['age']) / 30) 
+    base_capacity = disposable_income * 0.4
+    
+    # Final Capacity adjusted by age and credit reliability
+    final_cap = base_capacity * age_tenure_factor * (data['credit'] / 850)
+    
+    return result, max(0, final_cap)
 
 def show_data_insights():
     st.title("📊 Data Insights")
@@ -89,56 +109,54 @@ if page == "Home":
 
 # --- PAGE 2: PREDICTIONS ---
 elif page == "Predictions":
-    st.title("🧬 EMI Eligibility")
-    st.markdown("Assess **Eligibility Status** and **Affordability Limit** based on profile features.")
+    st.title("🧬 Real-Time Financial Analytics")
+    st.markdown("Predicting **Eligibility (Classification)** and **Capacity (Regression)**.")
 
     with st.form("feature_intelligence_form"):
         col1, col2 = st.columns(2)
-        
         with col1:
             st.subheader("👤 Profile & Income")
             u_salary = st.number_input("Monthly Net Income (₹)", value=85000)
             u_age = st.number_input("Current Age", 18, 70, 30)
             u_credit = st.slider("Credit Score", 300, 850, 720)
             u_years = st.number_input("Employment Years", value=5.0)
-
         with col2:
             st.subheader("💳 Obligations & Assets")
             u_rent = st.number_input("Monthly Rent/Home Exp (₹)", value=15000)
             u_cur_emi = st.number_input("Existing Monthly EMIs (₹)", value=5000)
             u_bank = st.number_input("Liquid Bank Balance (₹)", value=250000)
             u_dependents = st.number_input("Number of Dependents", 0, 10, 2)
-
-        # The "Test Scenario" section has been removed from here
         
-        run_analysis = st.form_submit_button("🚀 CALCULATE ELIGIBILITY")
+        run_analysis = st.form_submit_button("🚀 RUN ANALYTICS")
 
     if run_analysis:
-        # Data dictionary for calculation
+        # 1. Package inputs for the function
         feature_data = {
-            "age": u_age,
-            "monthly_salary": u_salary,
-            "years_of_employment": u_years,
-            "current_emi_amount": u_cur_emi,
-            "credit_score": u_credit,
-            "bank_balance": u_bank,
-            "rent": u_rent
+            "salary": u_salary, "age": u_age, "credit": u_credit, "years": u_years,
+            "rent": u_rent, "emi": u_cur_emi, "bank": u_bank, "dep": u_dependents
         }
-        
-        # UI Results
-        elig, cap = get_mock_prediction(feature_data)
-        
+
+        # 2. Run the Function (Classification & Regression)
+        elig_result, cap_result = get_realtime_analytics(feature_data)
+
         st.divider()
         res1, res2 = st.columns(2)
+
         with res1:
+            st.subheader("📊 Classification: Eligibility")
             status_map = {0: "❌ Denied", 1: "⚠️ High Risk", 2: "✅ Eligible"}
-            st.metric("Eligibility Status", status_map[elig])
+            st.metric("System Verdict", status_map[elig_result])
             
+            # Contextual warning for your age 50 scenario
+            if u_age > 45 and elig_result < 2:
+                st.warning("Decision influenced by limited retirement tenure and high expenses.")
+
         with res2:
-            # Setting a floor of 0 for capacity
-            display_cap = max(0, cap)
-            st.metric("Max EMI Capacity", f"₹{display_cap:,.2f}")
-            st.info("This is the maximum monthly EMI the system predicts you can afford.")
+            st.subheader("📈 Regression: EMI Capacity")
+            st.metric("Predicted Max EMI", f"₹{cap_result:,.2f}")
+            st.progress(min(1.0, cap_result/u_salary) if u_salary > 0 else 0)
+            st.caption("Calculated via Age-Weighted Regression Logic.")
+
 
 # --- PAGE 3: DATA INSIGHTS ---
 elif page == "Data Insights":
